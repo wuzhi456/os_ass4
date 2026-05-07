@@ -354,7 +354,9 @@ void exit(int code) {
     p->exit_ticks = ticks;
     release(&tickslock);
     uint64 turnaround_ticks = p->exit_ticks - p->create_ticks;
-    uint64 waiting_ticks = turnaround_ticks > p->running_ticks ? turnaround_ticks - p->running_ticks : 0;
+    uint64 waiting_ticks = 0;
+    if (turnaround_ticks > p->running_ticks)
+        waiting_ticks = turnaround_ticks - p->running_ticks;
     infof("proc %d: turnaround %d ticks, waiting %d ticks, running %d ticks, priority %d",
           p->pid,
           (int)turnaround_ticks,

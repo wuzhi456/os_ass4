@@ -203,9 +203,8 @@ void usertrap() {
         int should_yield = 0;
         acquire(&p->lock);
         p->running_ticks++;
-        if (p->time_slice_left > 0)
-            p->time_slice_left--;
-        if (p->time_slice_left == 0) {
+        p->time_slice_left--;
+        if (p->time_slice_left <= 0) {
             p->time_slice_left = p->time_slice_full;
             should_yield = 1;
         }

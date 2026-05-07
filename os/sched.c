@@ -21,8 +21,10 @@ static struct proc *fetch_task() {
     return proc;
 }
 
+static const int priority_quantum_multiplier = 2;
+
 static int priority_to_time_slice(int priority) {
-    int quantum = FULL_QUANTUM - priority * 2;
+    int quantum = FULL_QUANTUM - priority * priority_quantum_multiplier;
     return MAX(1, quantum);
 }
 
