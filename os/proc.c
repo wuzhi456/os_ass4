@@ -96,6 +96,14 @@ found:
     p->sleep_chan = NULL;
     p->pid        = allocpid();
     p->state      = USED;
+    p->priority        = 0;
+    p->time_slice_full = FULL_QUANTUM;
+    p->time_slice_left = p->time_slice_full;
+    p->running_ticks   = 0;
+    p->exit_ticks      = 0;
+    acquire(&tickslock);
+    p->create_ticks = ticks;
+    release(&tickslock);
 
     // fork or exec(load_user_elf) will initialize these:
     p->mm      = NULL;
@@ -122,6 +130,12 @@ static void freeproc(struct proc *p) {
     p->sleep_chan = NULL;
     p->killed     = 0;
     p->parent     = NULL;
+    p->priority        = 0;
+    p->time_slice_full = 0;
+    p->time_slice_left = 0;
+    p->create_ticks    = 0;
+    p->running_ticks   = 0;
+    p->exit_ticks      = 0;
 
     if (p->mm) {
         assert(!holding(&p->mm->lock));
@@ -335,6 +349,18 @@ void exit(int code) {
     wakeup(p->parent);
 
     acquire(&p->lock);
+
+    acquire(&tickslock);
+    p->exit_ticks = ticks;
+    release(&tickslock);
+    uint64 turnaround_ticks = p->exit_ticks - p->create_ticks;
+    uint64 waiting_ticks = turnaround_ticks > p->running_ticks ? turnaround_ticks - p->running_ticks : 0;
+    infof("proc %d: turnaround %d, waiting %d, running %d, priority %d",
+          p->pid,
+          (int)turnaround_ticks,
+          (int)waiting_ticks,
+          (int)p->running_ticks,
+          p->priority);
 
     p->exit_code = code;
     p->state     = ZOMBIE;

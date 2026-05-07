@@ -21,6 +21,11 @@ static struct proc *fetch_task() {
     return proc;
 }
 
+static int priority_to_quantum(int priority) {
+    int quantum = FULL_QUANTUM - priority * 2;
+    return MAX(1, quantum);
+}
+
 void add_task(struct proc *p) {
     assert(p->state == RUNNABLE);
     assert(holding(&p->lock));
@@ -148,7 +153,11 @@ void setpriority(int priority) {
     if (priority < 0 || priority >= 10)
         return;
 
-    // TODO:
-    
-    return ;
+    acquire(&p->lock);
+    p->priority        = priority;
+    p->time_slice_full = priority_to_quantum(priority);
+    p->time_slice_left = p->time_slice_full;
+    release(&p->lock);
+
+    return;
 }

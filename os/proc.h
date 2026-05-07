@@ -53,6 +53,12 @@ struct proc {
     int exit_code;
     void *sleep_chan;
     int killed;
+    int priority;
+    int time_slice_full;
+    int time_slice_left;
+    uint64 create_ticks;
+    uint64 running_ticks;
+    uint64 exit_ticks;
 
     struct proc *parent;  // Parent process
 

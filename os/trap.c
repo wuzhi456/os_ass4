@@ -198,9 +198,21 @@ void usertrap() {
     if ((killed = iskilled(p)) != 0)
         exit(killed);
 
-    // if it's a timer intr, call yield to give up CPU.
-    if (which_dev == 1)
-        yield();
+    // if it's a timer intr, account for time slice and yield if expired.
+    if (which_dev == 1) {
+        int should_yield = 0;
+        acquire(&p->lock);
+        p->running_ticks++;
+        if (p->time_slice_left > 0)
+            p->time_slice_left--;
+        if (p->time_slice_left == 0) {
+            p->time_slice_left = p->time_slice_full;
+            should_yield = 1;
+        }
+        release(&p->lock);
+        if (should_yield)
+            yield();
+    }
 
     // prepare for return to user mode
     assert(!intr_get());
