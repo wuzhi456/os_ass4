@@ -10,6 +10,14 @@ static struct queue task_queue;
 // defined in proc.c
 extern struct proc *pool[NPROC];
 
+static uint64 read_ticks(void) {
+    uint64 now;
+    acquire(&tickslock);
+    now = ticks;
+    release(&tickslock);
+    return now;
+}
+
 void sched_init() {
     init_queue(&task_queue);
 }
@@ -25,6 +33,13 @@ void add_task(struct proc *p) {
     assert(p->state == RUNNABLE);
     assert(holding(&p->lock));
 
+    uint64 now = read_ticks();
+    p->ready_ticks = now;
+    p->ready_valid = true;
+    if (!p->started) {
+        p->started = true;
+        p->start_ticks = now;
+    }
     push_queue(&task_queue, p);
     debugf("add task (pid=%d) to task queue", p->pid);
 }
@@ -79,6 +94,14 @@ void scheduler() {
 
         acquire(&p->lock);
         assert(p->state == RUNNABLE);
+        if (p->ready_valid) {
+            uint64 now = read_ticks();
+            p->waiting_ticks += now - p->ready_ticks;
+            p->ready_valid = false;
+        }
+        if (p->time_slice <= 0) {
+            p->time_slice = PRIORITY_QUANTUM(p->priority);
+        }
         debugf("switch to proc %d(%d)", p->index, p->pid);
         p->state = RUNNING;
         c->proc  = p;
@@ -148,7 +171,10 @@ void setpriority(int priority) {
     if (priority < 0 || priority >= 10)
         return;
 
-    // TODO:
-    
+    acquire(&p->lock);
+    p->priority = priority;
+    p->time_slice = PRIORITY_QUANTUM(priority);
+    release(&p->lock);
+
     return ;
 }

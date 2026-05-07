@@ -198,9 +198,21 @@ void usertrap() {
     if ((killed = iskilled(p)) != 0)
         exit(killed);
 
-    // if it's a timer intr, call yield to give up CPU.
-    if (which_dev == 1)
-        yield();
+    // if it's a timer intr, call yield to give up CPU based on the time slice.
+    if (which_dev == 1) {
+        int do_yield = 0;
+        acquire(&p->lock);
+        if (p->time_slice > 0) {
+            p->time_slice--;
+        }
+        if (p->time_slice <= 0) {
+            p->time_slice = PRIORITY_QUANTUM(p->priority);
+            do_yield = 1;
+        }
+        release(&p->lock);
+        if (do_yield)
+            yield();
+    }
 
     // prepare for return to user mode
     assert(!intr_get());

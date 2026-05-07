@@ -32,6 +32,7 @@
 // Common macros
 #define MIN(a, b)      (a < b ? a : b)
 #define MAX(a, b)      (a > b ? a : b)
+#define PRIORITY_QUANTUM(priority) (MAX(1, FULL_QUANTUM - (priority) * 2))
 #define MEMORY_FENCE() __sync_synchronize()
 #define __noreturn     __attribute__((noreturn))
 

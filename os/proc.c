@@ -15,6 +15,14 @@ static spinlock_t wait_lock;
 
 extern void sched_init();
 
+static uint64 read_ticks(void) {
+    uint64 now;
+    acquire(&tickslock);
+    now = ticks;
+    release(&tickslock);
+    return now;
+}
+
 // initialize the proc table at boot time.
 void proc_init() {
     // we only init once.
@@ -96,6 +104,14 @@ found:
     p->sleep_chan = NULL;
     p->pid        = allocpid();
     p->state      = USED;
+    p->priority   = 0;
+    p->time_slice = PRIORITY_QUANTUM(p->priority);
+    p->start_ticks   = 0;
+    p->ready_ticks   = 0;
+    p->waiting_ticks = 0;
+    p->exit_ticks    = 0;
+    p->started       = false;
+    p->ready_valid   = false;
 
     // fork or exec(load_user_elf) will initialize these:
     p->mm      = NULL;
@@ -122,6 +138,14 @@ static void freeproc(struct proc *p) {
     p->sleep_chan = NULL;
     p->killed     = 0;
     p->parent     = NULL;
+    p->priority   = 0;
+    p->time_slice = 0;
+    p->start_ticks   = 0;
+    p->ready_ticks   = 0;
+    p->waiting_ticks = 0;
+    p->exit_ticks    = 0;
+    p->started       = false;
+    p->ready_valid   = false;
 
     if (p->mm) {
         assert(!holding(&p->mm->lock));
@@ -209,6 +233,8 @@ int fork() {
 
     // Cause fork to return 0 in the child.
     np->trapframe->a0 = 0;
+    np->priority = p->priority;
+    np->time_slice = PRIORITY_QUANTUM(np->priority);
     np->parent        = p;
     np->state         = RUNNABLE;
     add_task(np);
@@ -335,6 +361,12 @@ void exit(int code) {
     wakeup(p->parent);
 
     acquire(&p->lock);
+
+    uint64 now        = read_ticks();
+    p->exit_ticks     = now;
+    uint64 turnaround = p->started ? now - p->start_ticks : 0;
+    uint64 waiting    = p->waiting_ticks;
+    printf("proc %d: waiting %d ticks, turnaround %d ticks\n", p->pid, (int)waiting, (int)turnaround);
 
     p->exit_code = code;
     p->state     = ZOMBIE;
