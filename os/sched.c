@@ -21,7 +21,7 @@ static struct proc *fetch_task() {
     return proc;
 }
 
-static int priority_to_quantum(int priority) {
+static int priority_to_time_slice(int priority) {
     int quantum = FULL_QUANTUM - priority * 2;
     return MAX(1, quantum);
 }
@@ -155,7 +155,7 @@ void setpriority(int priority) {
 
     acquire(&p->lock);
     p->priority        = priority;
-    p->time_slice_full = priority_to_quantum(priority);
+    p->time_slice_full = priority_to_time_slice(priority);
     p->time_slice_left = p->time_slice_full;
     release(&p->lock);
 
